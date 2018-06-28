@@ -19,8 +19,12 @@ source ./bin/common_functions.sh
 ###############
 
 # Entries in MIUI BOOTCLASSPATH that should be skipped
-#bootclasspath_miui_blacklist=("com.qualcomm.qti.camera.jar" "QPerformance.jar")
-
+bootclasspath_miui_blacklist=("com.qualcomm.qti.camera.jar" "QPerformance.jar")
+	# TODO: These BOOTCLASSPATH entries are also unique to MIUI, but may be vendor specific - need to investigate:
+		# /system/framework/tcmiface.jar
+		# /system/framework/telephony-ext.jar
+		# /system/framework/WfdCommon.jar
+		# /system/framework/oem-services.jar
 
 
 ###############
@@ -173,8 +177,50 @@ fi
 echo "[#] Init changes..."
 verifyFilesExist "./src_miui_initramfs/init.miui.rc"
 cp -af ./src_miui_initramfs/init.miui.rc ./target_system/${SRC_GSI_SYSTEM}/etc/init/init.miui.rc
-# TODO: An A-only compatible version. Use the treble-environ template from GSI
-cp -af ./src_miui_initramfs/init.environ.rc ./target_system/init.environ.rc
+
+echo "    [#] Parsing MIUI BOOTCLASSPATH..."
+# get BOOTCLASSPATH from MIUI
+bootclasspath=`cat ./src_miui_initramfs/init.environ.rc | grep -i 'export BOOTCLASSPATH ' | sed 's|^[ \t]*export BOOTCLASSPATH[ \t]*||'`
+
+# split bootclasspath into an array
+IFS=':' read -r -a bootclasspath_array <<< "${bootclasspath}"
+# clear the existing bootclasspath var since we're about to rebuild it from the array
+bootclasspath=""
+# strip black-listed entries from bootclasspath
+for bootclasspath_entry in "${bootclasspath_array[@]}"; do	
+	skip=false
+	for blacklist_entry in "${bootclasspath_miui_blacklist[@]}"; do
+		if [ ! "${bootclasspath_entry/$blacklist_entry}" == "${bootclasspath_entry}" ] ; then
+			# get the target file path for this jar
+			targetJarPath="./target_system`echo ${bootclasspath_entry} | sed 's|/system/|'/${SRC_GSI_SYSTEM}/'|'`"
+			rm -f ${targetJarPath}
+			echo "        [i] Removed blacklisted entry and associated file: ${bootclasspath_entry}"
+			skip=true
+		fi
+	done
+	if [ "${skip}" == "false" ]; then
+		if [ "${bootclasspath}" == "" ]; then
+			# new
+			bootclasspath="${bootclasspath_entry}"
+		else
+			# append
+			bootclasspath="${bootclasspath}:${bootclasspath_entry}"
+		fi
+	fi
+done
+
+# grab MIUI's SYSTEMSERVERCLASSPATH entry too
+systemserverclasspath=`cat ./src_miui_initramfs/init.environ.rc | grep -i 'export SYSTEMSERVERCLASSPATH ' | sed 's|^[ \t]*export SYSTEMSERVERCLASSPATH[ \t]*||'`
+
+# write-out a new init.treble-environ.rc based on rebuild BOOTCLASSPATH and original SYSTEMSERVERCLASSPATH
+echo "# Treble-adjusted values for MIUI GSI" > ./target_system/${SRC_GSI_SYSTEM}/etc/init/init.treble-environ.rc
+cat <<EOF >>./target_system/${SRC_GSI_SYSTEM}/etc/init/init.treble-environ.rc
+on init
+    export BOOTCLASSPATH ${bootclasspath}
+    export SYSTEMSERVERCLASSPATH ${systemserverclasspath}
+EOF
+
+echo "    [i] Wrote BOOTCLASSPATH and SYSTEMSERVERCLASSPATH to init.treble-environ.rc"
 
 
 
