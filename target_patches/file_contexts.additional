@@ -1,0 +1,3 @@
+# CosmicDan: not sure if this is right, just guessing
+/firmware/radio		u:object_r:firmware_file:s0
+

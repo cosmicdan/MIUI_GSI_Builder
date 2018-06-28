@@ -1,0 +1,12 @@
+/*
+/*/
+
+!/base_*/
+/base_*/*
+!/base_*/*.txt
+!/bin/
+!/target_patches/
+!/.gitignore
+!/*.sh
+!/**/*.md
+
