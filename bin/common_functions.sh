@@ -24,3 +24,16 @@ verifyFilesExist() {
 		fi
 	done
 }
+
+addToTargetFromGsi() {
+	for gsiPath in "$@"; do
+		verifyFilesExist "./src_gsi_system/${SRC_GSI_SYSTEM}/${gsiPath}"
+		cp -af "./src_gsi_system/${SRC_GSI_SYSTEM}/${gsiPath}" "./target_system/${SRC_GSI_SYSTEM}/${gsiPath}"
+	done
+}
+
+removeFromTarget() {
+	for targetFilePath in "$@"; do
+		rm -rf "./target_system/${SRC_GSI_SYSTEM}/${targetFilePath}"
+	done
+}

@@ -301,10 +301,31 @@ done
 ###############
 
 echo "[#] Generification..."
-# Use GSI keystore
-cp -af ./src_gsi_system/system/bin/keystore ./target_system/${SRC_GSI_SYSTEM}/bin/keystore
-# TODO: Disable MIUI camera server for now to get boot working
-mv ./target_system/${SRC_GSI_SYSTEM}/bin/cameraserver ./target_system/${SRC_GSI_SYSTEM}/bin/cameraserver_disabled
+# Copy GSI stuff, replacing where necessary
+addToTargetFromGsi \
+	bin/keystore \
+	bin/cameraserver
+
+if [ "${TARGET}" == "ab" ]; then
+	echo "    [#] Additional generification for A/B devices..."
+	addToTargetFromGsi \
+		bin/bootctl
+fi
+
+
+
+###############
+### Props
+###############
+
+# TODO: make this automated:
+# 1) Build an array of all props that exist in target
+# 2) Find unique ones from MIUI /vendor and add them in
+#
+#if [ -f "./target_patches/prop.default.additional" ]; then
+#	cat "./target_patches/prop.default.additional" >> "./target_system/${SRC_GSI_SYSTEM}/etc/prop.default"
+#fi
+
 
 
 ###############
@@ -313,23 +334,16 @@ mv ./target_system/${SRC_GSI_SYSTEM}/bin/cameraserver ./target_system/${SRC_GSI_
 
 # Remove vendor-specific stuff
 echo "[#] Removing vendor-specific files..."
-rm ./target_system/${SRC_GSI_SYSTEM}/etc/permissions/qti_permissions.xml
+removeFromTarget \
+	etc/permissions/qti_permissions.xml
 
 echo "[#] Misc. fixups..."
-if [ -d "./target_system/odm" ]; then
+# TODO: Is this necessary?
+#if [ -d "./target_system/odm" ]; then
 	# A/B devices only
-	rm -rf ./target_system/odm
-	ln -s /vendor ./target_system/odm
-fi
-
-# TODO: make this automated:
-# 1) Build an array of all props that exist in target
-# 2) Find unique ones from MIUI /vendor and add them in
-#
-if [ -f "./target_patches/prop.default.additional" ]; then
-	cat "./target_patches/prop.default.additional" >> "./target_system/${SRC_GSI_SYSTEM}/etc/prop.default"
-fi
-
+#	rm -rf ./target_system/odm
+#	ln -s /vendor ./target_system/odm
+#fi
 
 # TODO: How to exclude this manually?
 # IDEA 1) Bind-mount an empty folder to this folder on startup to "hide" the contents?
