@@ -46,6 +46,10 @@ while [[ $# -gt 0 ]]; do
 		DEBUG=FALSE
 		shift # past argument
 		;;
+		testmode)
+		TESTMODE=TRUE
+		shift # past argument
+		;;
 		*)    # unknown option
 		POSITIONAL+=("$1") # save it in an array for later
 		shift # past argument
@@ -67,6 +71,9 @@ if [ "${TARGET}" != "ab" -a "${TARGET}" != "a" ]; then
 	echo "        # Specify target type"
 	echo "    [user]"
 	echo "        # Do non-debug build. Leave omitted for the default debug."
+	echo "    [testmode]"
+	echo "        # Do a test build, which will only copy main target_system files if the directory doesn't exist."
+	echo "        # Useful for testing kitchen development changes."
 	echo ""
 	exit -1
 fi
@@ -98,6 +105,7 @@ if [ "${SRC_GSI_SYSTEM}" == "" ]; then
 fi
 
 
+
 ###############
 ### Build environment checks
 ###############
@@ -107,10 +115,14 @@ echo "------------------------------------------"
 echo "[i] 01_make_target_from_src started."
 echo ""
 
-if [ -d "./target_system" ]; then
+if [ -d "./target_system" -a "${TESTMODE}" != "TRUE" ]; then
 	echo "[!] A ./target_system/ folder exists."
 	echo "    Aborting for safety reasons."
 	exit -1
+fi
+
+if [ "${TESTMODE}" == "TRUE" ]; then
+	echo "[i] Testmode enabled. Will only copy the bulk of GSI/MIUI files if target_system does not exist."
 fi
 
 checkAndMakeTmp
@@ -119,21 +131,23 @@ checkAndMakeTmp
 ### Copy files
 ###############
 
-echo "[#] Creating GSI with MIUI replaced /system..."
-mkdir "./target_system"
-if [ "${TARGET}" == "ab" ]; then
-	rsync -a --exclude 'system' "./src_gsi_system/" "./target_system/"
-	rsync -a "src_miui_system/" "target_system/system/"
-	# Add unique libs from GSI (mostly HAL/VNDK stuff)
-	echo "[#] Copying unique GSI libs..."
-	rsync -a --ignore-existing "./src_gsi_system/system/lib/" "./target_system/system/lib/"
-	rsync -a --ignore-existing "./src_gsi_system/system/lib64/" "./target_system/system/lib64/"
-	echo "[#] Replacing selinux with GSI..."
-	rm -rf "./target_system/system/etc/selinux/*"
-	rsync -a "./src_gsi_system/system/etc/selinux/" "./target_system/system/etc/selinux/"
-else
-	echo "[!] A-only build not yet supported. Aborting."
-	exit -1
+if [ "${TESTMODE}" != "TRUE" -o ! -d "./target_system" ]; then
+	echo "[#] Creating GSI with MIUI replaced /system..."
+	mkdir "./target_system"
+	if [ "${TARGET}" == "ab" ]; then
+		rsync -a --exclude 'system' "./src_gsi_system/" "./target_system/"
+		rsync -a "src_miui_system/" "target_system/system/"
+		# Add unique libs from GSI (mostly HAL/VNDK stuff)
+		echo "[#] Copying unique GSI libs..."
+		rsync -a --ignore-existing "./src_gsi_system/system/lib/" "./target_system/system/lib/"
+		rsync -a --ignore-existing "./src_gsi_system/system/lib64/" "./target_system/system/lib64/"
+		echo "[#] Replacing selinux with GSI..."
+		rm -rf "./target_system/system/etc/selinux/*"
+		rsync -a "./src_gsi_system/system/etc/selinux/" "./target_system/system/etc/selinux/"
+	else
+		echo "[!] A-only build not yet supported. Aborting."
+		exit -1
+	fi
 fi
 
 # Debug = god-mode ADBD
@@ -156,7 +170,6 @@ fi
 ###############
 
 # TODO: Parse properly and only do what's needed? Some of the miui services seem to be hardware specific, but I am not sure yet.
-# Also may need seclabel changes
 echo "[#] Init changes..."
 verifyFilesExist "./src_miui_initramfs/init.miui.rc"
 cp -af ./src_miui_initramfs/init.miui.rc ./target_system/${SRC_GSI_SYSTEM}/etc/init/init.miui.rc
