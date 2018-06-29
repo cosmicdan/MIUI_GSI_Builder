@@ -1,4 +1,6 @@
 # Additional by CosmicDan's MIUI kitchen
+# Thanks to Phh's GSI for most of these
+
 pm.dexopt.first-boot=quicken
 pm.dexopt.boot=verify
 pm.dexopt.install=quicken
@@ -6,3 +8,39 @@ pm.dexopt.bg-dexopt=speed-profile
 pm.dexopt.ab-ota=speed-profile
 pm.dexopt.inactive=verify
 pm.dexopt.shared=speed
+
+dalvik.vm.image-dex2oat-Xms=64m
+dalvik.vm.image-dex2oat-Xmx=64m
+dalvik.vm.dex2oat-Xms=64m
+dalvik.vm.dex2oat-Xmx=512m
+ro.dalvik.vm.native.bridge=0
+dalvik.vm.usejit=true
+dalvik.vm.usejitprofiles=true
+dalvik.vm.dexopt.secondary=true
+dalvik.vm.appimageformat=lz4
+
+# TODO: definitely automate this. These keys probably already exist in build.prop
+ro.bootimage.build.fingerprint=Android/treble_arm64_bfS/phhgsi_arm64_ab:8.1.0/OPM2.171026.006/180607:userdebug/test-keys
+# Do not try to parse description, fingerprint, or thumbprint
+ro.build.description=treble_arm64_bfS-userdebug 8.1.0 OPM2.171026.006 180607 test-keys
+ro.build.fingerprint=Android/treble_arm64_bfS/phhgsi_arm64_ab:8.1.0/OPM2.171026.006/180607:userdebug/test-keys
+ro.build.flavor=treble_arm64_bfS-userdebug
+ro.build.system_root_image=true
+ro.product.model=Phh-Treble with FOSS apps
+ro.product.brand=Android
+ro.product.name=treble_arm64_bfS
+ro.product.device=phhgsi_arm64_ab
+# ro.build.product is obsolete; use ro.product.device
+ro.build.product=phhgsi_arm64_ab
+
+#Some devices have sdcardfs kernel panicing on 8.0
+#Disable for everyone for the moment
+ro.sys.sdcardfs=0
+
+# GSI always generate dex pre-opt in system image
+#ro.cp_system_other_odex=0
+
+
+dalvik.vm.isa.arm.variant=cortex-a15
+dalvik.vm.lockprof.threshold=500
+

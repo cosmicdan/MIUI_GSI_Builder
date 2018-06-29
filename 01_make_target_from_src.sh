@@ -365,11 +365,29 @@ addToTargetFromGsi \
 	bin/keystore \
 	bin/cameraserver
 
+# TODO: Disable cameraserver for now (broken and stops boot)
+mv "./target_system/${SRC_GSI_SYSTEM}/bin/cameraserver" "./target_system/${SRC_GSI_SYSTEM}/bin/cameraserver_disabled"
+	
 if [ "${TARGET}" == "ab" ]; then
 	echo "    [#] Additional generification for A/B devices..."
 	addToTargetFromGsi \
 		bin/bootctl
 fi
+
+# Remove vendor-specific stuff
+echo "[#] Removing vendor-specific files..."
+removeFromTarget \
+	etc/permissions/qti_permissions.xml \
+	lib/libsensor1.so \
+	lib/libsensor_reg.so \
+	lib64/libsensor1.so \
+	lib64/libsensor_reg.so \
+	priv-app/cit \
+	priv-app/AutoTest \
+	app/CarrierConfigure \
+	app/CtRoamingSettings \
+	app/SnapdragonSVA \
+	app/seccamsample \
 
 
 
@@ -377,24 +395,17 @@ fi
 ### Props
 ###############
 
-# TODO: make this automated:
-# 1) Build an array of all props that exist in target
-# 2) Find unique ones from MIUI /vendor and add them in
-#
-#if [ -f "./target_patches/prop.default.additional" ]; then
-#	cat "./target_patches/prop.default.additional" >> "./target_system/${SRC_GSI_SYSTEM}/etc/prop.default"
-#fi
+# TODO: Generate desired prop values from MIUI base instead ... ?
+if [ -f "./target_patches/prop.default.additional" ]; then
+	echo "[#] Adding specific MIUI properties to etc/prop.default ..."
+	cat "./target_patches/prop.default.additional" >> "./target_system/${SRC_GSI_SYSTEM}/etc/prop.default"
+fi
 
 
 
 ###############
 ### Misc. fixups
 ###############
-
-# Remove vendor-specific stuff
-echo "[#] Removing vendor-specific files..."
-removeFromTarget \
-	etc/permissions/qti_permissions.xml
 
 echo "[#] Misc. fixups..."
 # TODO: Is this necessary?
@@ -411,6 +422,8 @@ echo "[#] Misc. fixups..."
 
 # TODO: Need to manually mkdir /data/miui/ (I think? Maybe something post-boot will do it)
 # 	- Also, 'can't get icon cache folder' - customized_icons is not created.
+
+
 
 ###############
 ### Finished
