@@ -140,14 +140,10 @@ if [ "${TESTMODE}" != "TRUE" -o ! -d "./target_system" ]; then
 	mkdir "./target_system"
 	if [ "${TARGET}" == "ab" ]; then
 		rsync -a --exclude 'system' "./src_gsi_system/" "./target_system/"
-		rsync -a "src_miui_system/" "target_system/system/"
-		# Add unique libs from GSI (mostly HAL/VNDK stuff)
-		echo "[#] Copying unique GSI libs..."
-		rsync -a --ignore-existing "./src_gsi_system/system/lib/" "./target_system/system/lib/"
-		rsync -a --ignore-existing "./src_gsi_system/system/lib64/" "./target_system/system/lib64/"
+		rsync -a "src_miui_system/" "target_system/${SRC_GSI_SYSTEM}/"
 		echo "[#] Replacing selinux with GSI..."
-		rm -rf "./target_system/system/etc/selinux/*"
-		rsync -a "./src_gsi_system/system/etc/selinux/" "./target_system/system/etc/selinux/"
+		rm -rf "./target_system/${SRC_GSI_SYSTEM}/etc/selinux/*"
+		rsync -a "./src_gsi_system/system/etc/selinux/" "./target_system/${SRC_GSI_SYSTEM}/etc/selinux/"
 	else
 		echo "[!] A-only build not yet supported. Aborting."
 		exit -1
@@ -360,10 +356,89 @@ done
 ###############
 
 echo "[#] Generification..."
-# Copy GSI stuff, replacing where necessary
+# Remove stuff that is (probably) not used by GSI generification. Note that usr/ is later replaced by GSI version
+echo "    [#] Removing vendor-specific files..."
+
+# random crap that GSI doesn't need
+removeFromTarget \
+	app/CarrierConfigure \
+	app/CtRoamingSettings \
+	app/SnapdragonSVA \
+	app/seccamsample \
+	etc/audio_policy.conf \
+	etc/vold.fstab \
+	etc/bluetooth/bt_profile.conf \
+	etc/bluetooth/interop_database.conf \
+	etc/init/init.qti.fm.rc \
+	etc/permissions/qti_permissions.xml \
+	lib/egl \
+	lib64/egl \
+	lib/modules \
+	lib/rfsa \
+	lib/android.hardware.biometrics.fingerprint@*.so \
+	lib64/android.hardware.biometrics.fingerprint@*.so \
+	lib/android.hardware.health@*.so \
+	lib/android.hardware.radio.deprecated@*.so \
+	lib64/android.hardware.radio.deprecated@*.so \
+	lib/android.hardware.radio@*.so \
+	lib64/android.hardware.radio@*.so \
+	lib/android.hidl.base@*.so \
+	lib64/android.hidl.base@*.so \
+	lib/com.qualcomm.qti.*.so \
+	lib64/com.qualcomm.qti.*.so \
+	lib/vendor.qti.*.so \
+	lib64/vendor.qti.*.so \
+	lib/vndk-sp/android.hidl.base@*.so \
+	lib64/vndk-sp/android.hidl.base@*.so \
+	lib/libsensor1.so \
+	lib/libsensor_reg.so \
+	lib64/libsensor1.so \
+	lib64/libsensor_reg.so \
+	lib64/android.hardware.wifi.supplicant@*.so \
+	lib64/android.hardware.wifi@*.so \
+	priv-app/cit \
+	priv-app/AutoTest \
+	usr/
+	#bin/mm-qcamera-daemon
+
+# Qualcomm telephony	
+removeFromTarget \
+	bin/dpmd \
+	etc/init/dpmd.rc \
+	app/QtiTelephonyService \
+	app/QtiTelephonyService/QtiTelephonyService.apk \
+	etc/permissions/telephonyservice.xml \
+	framework/QtiTelephonyServicelibrary.jar \
+	
+# Qualcomm location	
+removeFromTarget \
+	lib/liblocationservice_jni.so \
+	lib64/liblocationservice_jni.so \
+	lib/libxt_native.so \
+	lib64/libxt_native.so \
+	priv-app/com.qualcomm.location
+	
+# TODO - remove anything else marked with "qti"
+# TODO: there's a crapton of more libs in MIUI that don't exist in GSI, will sort through that later
+
+# Copy unique GSI stuff
+echo "    [#] Copying unique GSI files..."
+rsync -a --ignore-existing "./src_gsi_system/system/bin/" "./target_system/${SRC_GSI_SYSTEM}/bin/"
+rsync -a --ignore-existing "./src_gsi_system/system/etc/" "./target_system/${SRC_GSI_SYSTEM}/etc/"
+rsync -a --ignore-existing "./src_gsi_system/system/lib/" "./target_system/${SRC_GSI_SYSTEM}/lib/"
+rsync -a --ignore-existing "./src_gsi_system/system/lib64/" "./target_system/${SRC_GSI_SYSTEM}/lib64/"
+rsync -a --ignore-existing "./src_gsi_system/system/phh/" "./target_system/${SRC_GSI_SYSTEM}/phh/"
+rsync -a --ignore-existing "./src_gsi_system/system/usr/" "./target_system/${SRC_GSI_SYSTEM}/usr/"
+rsync -a --ignore-existing "./src_gsi_system/system/xbin/" "./target_system/${SRC_GSI_SYSTEM}/xbin/"
+
+echo "    [#] Replacing specific files with GSI version..."
 addToTargetFromGsi \
+	compatibility_matrix.xml \
 	bin/keystore \
-	bin/cameraserver
+	etc/bluetooth/bt_did.conf \
+	etc/init/audioserver.rc \
+	etc/init/bootanim.rc
+	#bin/cameraserver
 
 # TODO: Disable cameraserver for now (broken and stops boot)
 mv "./target_system/${SRC_GSI_SYSTEM}/bin/cameraserver" "./target_system/${SRC_GSI_SYSTEM}/bin/cameraserver_disabled"
@@ -373,22 +448,6 @@ if [ "${TARGET}" == "ab" ]; then
 	addToTargetFromGsi \
 		bin/bootctl
 fi
-
-# Remove vendor-specific stuff
-echo "[#] Removing vendor-specific files..."
-removeFromTarget \
-	etc/permissions/qti_permissions.xml \
-	lib/libsensor1.so \
-	lib/libsensor_reg.so \
-	lib64/libsensor1.so \
-	lib64/libsensor_reg.so \
-	priv-app/cit \
-	priv-app/AutoTest \
-	app/CarrierConfigure \
-	app/CtRoamingSettings \
-	app/SnapdragonSVA \
-	app/seccamsample \
-
 
 
 ###############
@@ -415,13 +474,11 @@ echo "[#] Misc. fixups..."
 #	ln -s /vendor ./target_system/odm
 #fi
 
-# TODO: How to exclude this manually?
-# IDEA 1) Bind-mount an empty folder to this folder on startup to "hide" the contents?
-# IDEA 2) Hex-edit libs that reference the path? Last resort...
+# TODO: Automate this in init script. Phh has a clever way of hiding files, e.g.:
+# mount -o bind system/phh/empty /system/etc/permissions/android.hardware.consumerir.xml
 # rm -rf /vendor/overlay/*
 
-# TODO: Need to manually mkdir /data/miui/ (I think? Maybe something post-boot will do it)
-# 	- Also, 'can't get icon cache folder' - customized_icons is not created.
+# TODO: 'can't get icon cache folder' - customized_icons is not created?
 
 
 

@@ -17,8 +17,8 @@ cleanupTmp() {
 
 verifyFilesExist() {
 	for filepath in "$@"; do
-		if [ ! -f "${filepath}" ]; then
-			echo "[!] Error - cannot find file '${filepath}'"
+		if [ ! -f "${filepath}" -a ! -d "${filepath}" ]; then
+			echo "[!] Error - cannot find file/directory '${filepath}'"
 			echo "    Aborted."
 			exit -1
 		fi
@@ -34,6 +34,9 @@ addToTargetFromGsi() {
 
 removeFromTarget() {
 	for targetFilePath in "$@"; do
-		rm -rf "./target_system/${SRC_GSI_SYSTEM}/${targetFilePath}"
+		(
+		shopt -s extglob # expands any wildcards passed in
+		rm -r ./target_system/${SRC_GSI_SYSTEM}/${targetFilePath}
+		)
 	done
 }
