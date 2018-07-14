@@ -26,6 +26,9 @@ bootclasspath_miui_blacklist=("com.qualcomm.qti.camera.jar" "QPerformance.jar")
 		# /system/framework/WfdCommon.jar
 		# /system/framework/oem-services.jar
 
+# prop file locations to consider for source (GSI) reading and target (MIUI) writing
+prop_locations=("etc/prop.default" "build.prop")
+
 
 ###############
 ### Get arguments
@@ -154,9 +157,9 @@ fi
 if [ "${DEBUG}" == "TRUE" ]; then
 	echo "[#] Insecure/root-mode ADBD patch..."
 	if [ "${TARGET}" == "ab" ]; then
-		sed -i --follow-symlinks 's|ro.adb.secure=.*|ro.adb.secure=0|' "./target_system/default.prop"
-		sed -i --follow-symlinks 's|ro.debuggable=.*|ro.debuggable=1|' "./target_system/default.prop"
-		sed -i --follow-symlinks 's|persist.sys.usb.config=.*|persist.sys.usb.config=adb|' "./target_system/default.prop"
+		sed -i --follow-symlinks 's|ro.adb.secure=.*|ro.adb.secure=0|g' "./target_system/${SRC_GSI_SYSTEM}/etc/prop.default"
+		sed -i --follow-symlinks 's|ro.debuggable=.*|ro.debuggable=1|g' "./target_system/${SRC_GSI_SYSTEM}/etc/prop.default"
+		sed -i --follow-symlinks 's|persist.sys.usb.config=.*|persist.sys.usb.config=adb|g' "./target_system/${SRC_GSI_SYSTEM}/etc/prop.default"
 	#else
 		# ?
 	fi
@@ -406,7 +409,6 @@ removeFromTarget \
 	bin/dpmd \
 	etc/init/dpmd.rc \
 	app/QtiTelephonyService \
-	app/QtiTelephonyService/QtiTelephonyService.apk \
 	etc/permissions/telephonyservice.xml \
 	framework/QtiTelephonyServicelibrary.jar \
 	
@@ -454,11 +456,74 @@ fi
 ### Props
 ###############
 
-# TODO: Generate desired prop values from MIUI base instead ... ?
-if [ -f "./target_patches/prop.default.additional" ]; then
-	echo "[#] Adding specific MIUI properties to etc/prop.default ..."
-	cat "./target_patches/prop.default.additional" >> "./target_system/${SRC_GSI_SYSTEM}/etc/prop.default"
+echo "[#] Adding/updating props ..."
+{
+IFS=
+echo "" >> "./target_system/${SRC_GSI_SYSTEM}/${prop_locations[0]}"
+echo "######" >> "./target_system/${SRC_GSI_SYSTEM}/${prop_locations[0]}"
+echo "# Additional for MIUI GSI" >> "./target_system/${SRC_GSI_SYSTEM}/${prop_locations[0]}"
+echo "######" >> "./target_system/${SRC_GSI_SYSTEM}/${prop_locations[0]}"
+echo "" >> "./target_system/${SRC_GSI_SYSTEM}/${prop_locations[0]}"
+
+# First, remove desired props listed in props.remove
+echo "    [#] Removing specific props..."
+if [ -f "./target_patches/props.remove" ]; then
+	# sed is used here to skip over blank/empty lines
+	sed '/^[ \t]*$/d' "./target_patches/props.remove" | while read -r LINE; do
+		if [[ "${LINE}" == "#"* ]]; then
+			# skip comments
+			continue
+		fi
+		propKey="${LINE%=*}="
+		addOrReplaceTargetProp "${propKey}"
+	done
 fi
+
+# Add/replace literal props from props.additional
+echo "    [#] Additional custom props..."
+if [ -f "./target_patches/props.additional" ]; then
+	# sed is used here to skip over blank/empty lines
+	sed '/^[ \t]*$/d' "./target_patches/props.additional" | while read -r LINE; do
+		if [[ "${LINE}" == "#"* ]]; then
+			# skip comments
+			continue
+		fi
+		propKey="${LINE%=*}="
+		addOrReplaceTargetProp "${propKey}" "${LINE}"
+	done
+fi
+
+# Merge in specified prop keys with values sourced from GSI
+echo "    [#] GSI-sourced props..."
+if [ -f "./target_patches/props.merge" ]; then
+	# sed is used here to skip over blank/empty lines
+	sed '/^[ \t]*$/d' "./target_patches/props.merge" | while read -r LINE; do
+		if [[ "${LINE}" == "#"* ]]; then
+			# skip comments
+			continue
+		fi
+		propKey="${LINE%=*}="
+		for propFile in "${prop_locations[@]}"; do
+			propSearch=`grep ${propKey} "./src_gsi_system/${SRC_GSI_SYSTEM}/${propFile}"`
+			if [ "${propSearch}" != "" ]; then
+				propFound="${propSearch}"
+			fi
+			# don't break if found - we want to get the last found prop to try and simulate standard behavior
+		done
+		if [ "${propFound}" == "" ]; then
+			# Error-out if the prop key wasn't found in the GSI
+			echo "[!] Error - cannot find prop from GSI with key: ${propKey}"
+			echo "    Aborted."
+			exit -1
+		else
+			addOrReplaceTargetProp "${propKey}" "${propFound}"
+			propFound=""
+		fi
+	done
+fi
+
+}
+
 
 
 

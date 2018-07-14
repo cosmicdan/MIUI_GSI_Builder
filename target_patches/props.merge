@@ -1,0 +1,38 @@
+# Prop keynames that will be found in the GSI and added/replaced into the MIUI build
+# If a prop listed here isn't found in the GSI, the build will fail as some are essential but usually live on MIUI's vendor instead of system.
+
+ro.bootimage.build.fingerprint=Android/treble_arm64_bfS/phhgsi_arm64_ab:8.1.0/OPM2.171026.006/180607:userdebug/test-keys
+# Do not try to parse description, fingerprint, or thumbprint
+ro.build.description
+ro.build.fingerprint
+ro.build.flavor
+ro.build.system_root_image
+ro.product.brand
+ro.product.name
+ro.product.device
+# ro.build.product is obsolete; use ro.product.device
+ro.build.product
+
+pm.dexopt.first-boot
+pm.dexopt.boot
+pm.dexopt.install
+pm.dexopt.bg-dexopt
+pm.dexopt.ab-ota
+pm.dexopt.inactive
+pm.dexopt.shared
+dalvik.vm.image-dex2oat-Xms
+dalvik.vm.image-dex2oat-Xmx
+dalvik.vm.dex2oat-Xms
+dalvik.vm.dex2oat-Xmx
+ro.dalvik.vm.native.bridge
+dalvik.vm.usejit
+dalvik.vm.usejitprofiles
+dalvik.vm.dexopt.secondary
+dalvik.vm.appimageformat
+
+dalvik.vm.isa.arm.variant
+dalvik.vm.lockprof.threshold
+
+#Some devices have sdcardfs kernel panicing on 8.0
+#Disable for everyone for the moment
+ro.sys.sdcardfs

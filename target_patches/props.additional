@@ -1,0 +1,7 @@
+# Custom props to be added or replaced in the MIUI build.
+# They will be added to props.default
+
+ro.product.model=MIUI based on Phh-Treble
+ro.miui.has_cust_partition=false
+ro.build.display.id=CosmicDan.com
+
